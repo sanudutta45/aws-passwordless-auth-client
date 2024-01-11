@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { autoSignIn, confirmSignIn, signUp } from "aws-amplify/auth"
+import { confirmSignIn, signIn, signUp } from "aws-amplify/auth"
 
 function App() {
   const [email, setEmail] = useState("")
@@ -18,30 +18,44 @@ function App() {
     return nr.toString(16).padStart(2, "0")
   }
 
-  const handleSendEmail = async (e) => {
+  const handleSigninSignup = async (e) => {
     e.preventDefault()
     setLoading(true)
     try {
+      const { nextStep: nextStep2 } = await signIn({
+        username: email,
+        options: {
+          authFlowType: "CUSTOM_WITHOUT_SRP",
+        },
+      })
+      if (nextStep2.signInStep === "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE") {
+        setEmailSent(true)
+      }
+    } catch (e) {
+      console.log("ERROR IN LOGIN: ", e)
       const { nextStep } = await signUp({
         username: email,
         password: getRandomString(30),
         options: {
           authFlowType: "CUSTOM_WITHOUT_SRP",
           userAttributes: {
-            name: "sanu dutta",
+            name: "",
           },
           autoSignIn: true,
         },
       })
       console.log("NEXT STEP: ", nextStep)
-      if (nextStep.signInStep === "COMPLETE_AUTO_SIGN_IN") {
-        const { nextStep: nextStep2 } = await autoSignIn()
+      if (nextStep.signUpStep === "COMPLETE_AUTO_SIGN_IN") {
+        const { nextStep: nextStep2 } = await signIn({
+          username: email,
+          options: {
+            authFlowType: "CUSTOM_WITHOUT_SRP",
+          },
+        })
         if (nextStep2.signInStep === "CONFIRM_SIGN_IN_WITH_CUSTOM_CHALLENGE") {
           setEmailSent(true)
         }
       }
-    } catch (e) {
-      console.log("ERROR IN LOGIN: ", e)
     } finally {
       setLoading(false)
     }
@@ -51,10 +65,11 @@ function App() {
     e.preventDefault()
     setLoading(true)
     try {
-      const { isSignedIn } = await confirmSignIn({
+      await confirmSignIn({
         challengeResponse: authCode,
       })
-      if (isSignedIn) setIsAuth(true)
+      console.log("CONFIRM SIGNIN OUTPUT ")
+      setIsAuth(true)
     } catch (error) {
     } finally {
       setLoading(false)
@@ -71,7 +86,7 @@ function App() {
     >
       {!isAuth ? (
         <div>
-          <form onSubmit={handleSendEmail}>
+          <form onSubmit={handleSigninSignup}>
             <div style={{ display: "flex", gap: "150px" }}>
               <label htmlFor='login_input'>Email: </label>
               <input
